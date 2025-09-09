@@ -51,7 +51,7 @@
 </body>
 </body>
     <script th:inline="javascript">
-        const topicId = [[${topic.id}]];
+        const topicId = /*[[${topic.id}]]*/ "";
         function isLoggedIn() {
             // Replace with your real login check logic
             return document.cookie.includes('loggedIn=true');
