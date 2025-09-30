@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Console - Support</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        .font-heading { font-family: 'Montserrat', sans-serif; }
+        .chat-messages { height: calc(100vh - 280px); overflow-y: auto; }
+        .message-bubble { max-width: 80%; }
+        .customer-message { background-color: #e9f5ff; margin-right: auto; }
+        .agent-message { background-color: #f0f0f0; margin-left: auto; }
+        .system-message { background-color: #fff8e6; margin: 0 auto; font-style: italic; }
+        .queue-list { max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body class="bg-gray-100 font-heading">
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-gray-900">Agent Console</h1>
+                    <div id="connection-status" class="ml-4 text-sm font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-800">Disconnected</div>
+                    <div id="availability-toggle" class="ml-4 relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="status-toggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                        <span class="ml-3 text-sm font-medium text-gray-900">Available</span>
+                    </div>
+                </div>
+                <div>
+                    <a href="/dashboard" class="text-blue-600 hover:underline mr-4">Dashboard</a>
+                    <form th:action="@{/logout}" method="post" class="inline">
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Sidebar with queue and active chats -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-lg shadow overflow-hidden">
+                            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                <h2 class="text-lg font-medium text-gray-900">Customer Queue</h2>
+                                <div class="text-sm text-gray-500">Waiting customers: <span id="queue-count" class="font-medium">0</span></div>
+                            </div>
+                            
+                            <div id="customer-queue" class="queue-list divide-y divide-gray-200">
+                                <div th:each="session : ${waitingCustomers}" class="p-4 hover:bg-gray-50 cursor-pointer customer-queue-item" th:data-session-id="${session.id}">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <p class="font-medium" th:text="${session.customer.username}">Customer</p>
+                                            <p class="text-sm text-gray-500" th:text="${'Waiting since: ' + #temporals.format(session.createdAt, 'HH:mm')}">Waiting since: 12:45</p>
+                                        </div>
+                                        <button class="accept-chat-btn bg-green-600 hover:bg-green-700 text-white text-sm py-1 px-3 rounded">
+                                            Accept
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="empty-queue-message" th:if="${#lists.isEmpty(waitingCustomers)}" class="p-6 text-center text-gray-500">
+                                    No customers waiting
+                                </div>
+                            </div>
+                            
+                            <div class="px-4 py-3 bg-gray-50 border-t border-b border-gray-200">
+                                <h2 class="text-lg font-medium text-gray-900">Active Chats</h2>
+                            </div>
+                            
+                            <div id="active-chats" class="queue-list divide-y divide-gray-200">
+                                <!-- Active chats will be populated here -->
+                                <div id="empty-active-message" class="p-6 text-center text-gray-500">
+                                    No active chats
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main chat area -->
+                    <div class="lg:col-span-2">
+                        <div id="no-chat-selected" class="bg-white rounded-lg shadow p-8 text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            <h2 class="text-xl font-medium text-gray-700 mb-2">No chat selected</h2>
+                            <p class="text-gray-500">Select a customer from the queue or an active chat to start helping.</p>
+                        </div>
+                        
+                        <div id="chat-interface" class="bg-white rounded-lg shadow hidden">
+                            <div class="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                                <div class="flex items-center">
+                                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+                                        C
+                                    </div>
+                                    <div class="ml-3">
+                                        <p id="customer-name" class="text-sm font-medium">Customer Name</p>
+                                        <p class="text-xs text-gray-500" id="chat-session-time">Started at 12:45</p>
+                                    </div>
+                                </div>
+                                <button id="end-chat-btn" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                                    End Chat
+                                </button>
+                            </div>
+                            
+                            <div id="chat-messages" class="chat-messages p-4 space-y-4">
+                                <!-- Messages will be populated here -->
+                            </div>
+                            
+                            <div class="border-t border-gray-200 p-4">
+                                <form id="message-form">
+                                    <div class="flex">
+                                        <input type="text" id="message-input" placeholder="Type your message..." 
+                                               class="flex-grow border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-r-lg">
+                                            Send
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script th:inline="javascript">
+        const username = /*[[${#authentication.name}]]*/ 'agent';
+        let stompClient = null;
+        let currentChatId = null;
+        let isAvailable = true;
+        
+        function connect() {
+            const socket = new SockJS('/chat-websocket');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                console.log('Connected: ' + frame);
+                updateConnectionStatus('Connected', 'bg-green-100 text-green-800');
+                
+                // Subscribe to personal message channel
+                stompClient.subscribe('/user/queue/messages', onMessageReceived);
+                
+                // Subscribe to session updates
+                stompClient.subscribe('/user/queue/session', onSessionUpdate);
+                
+                // Subscribe to queue updates
+                stompClient.subscribe('/topic/queue-updates', onQueueUpdate);
+                
+                // Set agent availability
+                toggleAvailability(isAvailable);
+            }, onError);
+        }
+        
+        function onError() {
+            updateConnectionStatus('Connection lost', 'bg-red-100 text-red-800');
+            setTimeout(connect, 5000); // Try to reconnect after 5 seconds
+        }
+        
+        function updateConnectionStatus(text, cssClass) {
+            const statusEl = document.getElementById('connection-status');
+            statusEl.textContent = text;
+            statusEl.className = 'ml-4 text-sm font-medium px-2 py-1 rounded-full ' + cssClass;
+        }
+        
+        function onQueueUpdate(payload) {
+            const update = JSON.parse(payload.body);
+            document.getElementById('queue-count').textContent = update.queueSize;
+            
+            // If the queue has been updated, refresh the page to get latest data
+            if (update.action === 'NEW_CUSTOMER') {
+                // Could make an AJAX call instead to avoid full page refresh
+                window.location.reload();
+            }
+        }
+        
+        function onSessionUpdate(payload) {
+            const sessionInfo = JSON.parse(payload.body);
+            
+            if (sessionInfo.status === 'ACTIVE') {
+                // New chat assigned to agent
+                currentChatId = sessionInfo.sessionId;
+                
+                // Show the chat interface and hide the "no chat" message
+                document.getElementById('no-chat-selected').classList.add('hidden');
+                document.getElementById('chat-interface').classList.remove('hidden');
+                
+                // Set customer details
+                document.getElementById('customer-name').textContent = sessionInfo.customerName;
+                document.getElementById('chat-session-time').textContent = 'Started just now';
+                
+                // Clear previous messages
+                document.getElementById('chat-messages').innerHTML = '';
+                
+                // Add the active chat to the sidebar
+                addActiveChat(sessionInfo);
+            }
+            else if (sessionInfo.status === 'CLOSED') {
+                // Chat ended
+                if (sessionInfo.sessionId === currentChatId) {
+                    currentChatId = null;
+                    document.getElementById('no-chat-selected').classList.remove('hidden');
+                    document.getElementById('chat-interface').classList.add('hidden');
+                }
+                
+                // Remove from active chats
+                removeActiveChat(sessionInfo.sessionId);
+            }
+        }
+        
+        function addActiveChat(sessionInfo) {
+            const activeChatsList = document.getElementById('active-chats');
+            const emptyChatMessage = document.getElementById('empty-active-message');
+            
+            if (emptyChatMessage) {
+                emptyChatMessage.remove();
+            }
+            
+            // Check if chat already exists
+            const existingChat = document.querySelector(`.active-chat-item[data-session-id="${sessionInfo.sessionId}"]`);
+            if (existingChat) {
+                return;
+            }
+            
+            const chatItem = document.createElement('div');
+            chatItem.className = 'p-4 hover:bg-gray-50 cursor-pointer active-chat-item';
+            chatItem.setAttribute('data-session-id', sessionInfo.sessionId);
+            chatItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="font-medium">${sessionInfo.customerName}</p>
+                        <p class="text-sm text-gray-500">Active chat</p>
+                    </div>
+                    <div class="h-3 w-3 bg-green-500 rounded-full"></div>
+                </div>
+            `;
+            
+            // Add click event to switch between chats
+            chatItem.addEventListener('click', function() {
+                switchToChat(sessionInfo.sessionId);
+            });
+            
+            activeChatsList.appendChild(chatItem);
+        }
+        
+        function removeActiveChat(sessionId) {
+            const chatItem = document.querySelector(`.active-chat-item[data-session-id="${sessionId}"]`);
+            if (chatItem) {
+                chatItem.remove();
+            }
+            
+            // Show empty message if no more active chats
+            const activeChatsList = document.getElementById('active-chats');
+            if (activeChatsList.childElementCount === 0) {
+                activeChatsList.innerHTML = `
+                    <div id="empty-active-message" class="p-6 text-center text-gray-500">
+                        No active chats
+                    </div>
+                `;
+            }
+        }
+        
+        function switchToChat(sessionId) {
+            currentChatId = sessionId;
+            // Make AJAX call to get chat history
+            // For now, just show the chat interface
+            document.getElementById('no-chat-selected').classList.add('hidden');
+            document.getElementById('chat-interface').classList.remove('hidden');
+            
+            // Clear chat messages
+            document.getElementById('chat-messages').innerHTML = '';
+            
+            // TODO: Load chat history via AJAX
+        }
+        
+        function onMessageReceived(payload) {
+            const message = JSON.parse(payload.body);
+            
+            // Only show messages for the current chat
+            if (message.chatSession.id !== currentChatId) {
+                return;
+            }
+            
+            const messagesContainer = document.getElementById('chat-messages');
+            
+            const messageDiv = document.createElement('div');
+            
+            if (message.type === 'SYSTEM') {
+                messageDiv.className = 'message-bubble system-message p-3 rounded-lg';
+            } else if (message.sender.username === username) {
+                messageDiv.className = 'message-bubble agent-message p-3 rounded-lg';
+            } else {
+                messageDiv.className = 'message-bubble customer-message p-3 rounded-lg';
+            }
+            
+            messageDiv.textContent = message.content;
+            messagesContainer.appendChild(messageDiv);
+            
+            // Scroll to the bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function sendMessage(event) {
+            event.preventDefault();
+            
+            const messageInput = document.getElementById('message-input');
+            const messageContent = messageInput.value.trim();
+            
+            if (messageContent && stompClient && currentChatId) {
+                const chatMessage = {
+                    sessionId: currentChatId,
+                    content: messageContent
+                };
+                
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+                messageInput.value = '';
+            }
+        }
+        
+        function endChat() {
+            if (stompClient && currentChatId) {
+                stompClient.send("/app/chat.leave", {}, JSON.stringify({
+                    sessionId: currentChatId
+                }));
+            }
+        }
+        
+        function toggleAvailability(available) {
+            isAvailable = available;
+            
+            const statusLabel = document.querySelector('#availability-toggle span');
+            statusLabel.textContent = available ? 'Available' : 'Unavailable';
+            
+            if (stompClient) {
+                stompClient.send("/app/agent.available", {}, JSON.stringify({
+                    available: available
+                }));
+            }
+        }
+        
+        function acceptChat(sessionId) {
+            // AJAX call to accept a specific chat
+            fetch(`/api/chat/accept/${sessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to accept chat');
+                return response.json();
+            })
+            .then(data => {
+                // Chat will be assigned through WebSocket
+                console.log('Chat accepted:', data);
+            })
+            .catch(error => {
+                console.error('Error accepting chat:', error);
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connect to WebSocket
+            connect();
+            
+            // Set up event listeners
+            document.getElementById('message-form').addEventListener('submit', sendMessage);
+            document.getElementById('end-chat-btn').addEventListener('click', endChat);
+            
+            document.getElementById('status-toggle').addEventListener('change', function(e) {
+                toggleAvailability(e.target.checked);
+            });
+            
+            // Set up listeners for accept chat buttons
+            document.querySelectorAll('.accept-chat-btn').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const chatItem = e.target.closest('.customer-queue-item');
+                    const sessionId = chatItem.getAttribute('data-session-id');
+                    acceptChat(sessionId);
+                });
+            });
+            
+            // Set up listeners for queue items
+            document.querySelectorAll('.customer-queue-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    const sessionId = this.getAttribute('data-session-id');
+                    acceptChat(sessionId);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

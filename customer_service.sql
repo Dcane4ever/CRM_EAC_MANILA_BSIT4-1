@@ -51,6 +51,73 @@ INSERT INTO `help_topic` (`id`, `description`, `title`, `url`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `role` varchar(20) NOT NULL,
+  `available` tinyint(1) NOT NULL DEFAULT 1,
+  `guest` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `users` (sample data)
+--
+
+INSERT INTO `users` (`id`, `username`, `password`, `email`, `role`, `available`, `guest`) VALUES
+(1, 'admin', '$2a$10$7e3.KbQPWcYv8ZcI0x1kAeqKjFj8tFjHhF4U8XIGM8Y7wQO1Y1O9S', 'admin@techcorp.com', 'ADMIN', 1, 0),
+(2, 'agent1', '$2a$10$7e3.KbQPWcYv8ZcI0x1kAeqKjFj8tFjHhF4U8XIGM8Y7wQO1Y1O9S', 'agent1@techcorp.com', 'AGENT', 1, 0),
+(3, 'customer1', '$2a$10$7e3.KbQPWcYv8ZcI0x1kAeqKjFj8tFjHhF4U8XIGM8Y7wQO1Y1O9S', 'customer1@email.com', 'CUSTOMER', 1, 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_sessions`
+--
+
+CREATE TABLE `chat_sessions` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `customer_id` bigint(20) DEFAULT NULL,
+  `agent_id` bigint(20) DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'WAITING',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ended_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_customer` (`customer_id`),
+  KEY `fk_agent` (`agent_id`),
+  FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`agent_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_messages`
+--
+
+CREATE TABLE `chat_messages` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `session_id` bigint(20) NOT NULL,
+  `sender_id` bigint(20) DEFAULT NULL,
+  `message_type` varchar(20) NOT NULL DEFAULT 'CHAT',
+  `content` text NOT NULL,
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_session` (`session_id`),
+  KEY `fk_sender` (`sender_id`),
+  FOREIGN KEY (`session_id`) REFERENCES `chat_sessions` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `help_topic_steps`
 --
 

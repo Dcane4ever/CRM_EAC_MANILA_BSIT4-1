@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Chat - Support</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        .font-heading { font-family: 'Montserrat', sans-serif; }
+        .chat-container { height: calc(100vh - 180px); }
+        .chat-messages { height: calc(100% - 80px); overflow-y: auto; }
+        .message-bubble { max-width: 80%; }
+        .customer-message { background-color: #e9f5ff; margin-left: auto; }
+        .agent-message { background-color: #f0f0f0; margin-right: auto; }
+        .system-message { background-color: #fff8e6; margin: 0 auto; font-style: italic; }
+    </style>
+</head>
+<body class="bg-gray-100 font-heading">
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-gray-900">Live Support Chat</h1>
+                    <span id="chat-status" class="ml-4 text-sm font-medium px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">Connecting...</span>
+                </div>
+                <div>
+                    <a href="/dashboard" class="text-blue-600 hover:underline mr-4">Dashboard</a>
+                    <form th:action="@{/logout}" method="post" class="inline">
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-sm">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow">
+            <div class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+                <!-- Waiting room message -->
+                <div id="waiting-room" class="bg-white p-6 rounded-lg shadow-md text-center mb-6">
+                    <h2 class="text-xl font-semibold mb-2">Waiting for an agent</h2>
+                    <p class="mb-4">You are currently in position <span id="queue-position" class="font-bold">1</span> in the queue.</p>
+                    <p>Please wait while we connect you with the next available support agent.</p>
+                    <div class="mt-4">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chat interface (hidden until agent connects) -->
+                <div id="chat-interface" class="bg-white rounded-lg shadow-md hidden">
+                    <div class="border-b border-gray-200 px-6 py-4 flex items-center">
+                        <div class="relative">
+                            <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-bold">
+                                A
+                            </div>
+                            <span id="agent-status" class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
+                        </div>
+                        <div class="ml-3">
+                            <p id="agent-name" class="text-sm font-medium">Agent Name</p>
+                            <p class="text-xs text-gray-500">Support Agent</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-container p-4">
+                        <div id="chat-messages" class="chat-messages space-y-4 mb-4"></div>
+                        
+                        <form id="message-form" class="mt-auto">
+                            <div class="flex">
+                                <input type="text" id="message-input" placeholder="Type your message..." 
+                                       class="flex-grow border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-r-lg">
+                                    Send
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 px-6 py-3 flex justify-between items-center">
+                        <button id="end-chat-btn" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                            End Chat
+                        </button>
+                        <span class="text-xs text-gray-500">Your chat session will be saved for quality purposes</span>
+                    </div>
+                </div>
+                
+                <!-- Ended chat message -->
+                <div id="ended-chat" class="bg-white p-6 rounded-lg shadow-md text-center hidden">
+                    <h2 class="text-xl font-semibold mb-4">Chat Session Ended</h2>
+                    <p class="mb-6">Thank you for using our live support chat.</p>
+                    <div>
+                        <a href="/dashboard" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">
+                            Return to Dashboard
+                        </a>
+                        <button id="new-chat-btn" class="ml-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded">
+                            Start New Chat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script th:inline="javascript">
+        // For registered users, get username from authentication
+        // For guest users, get from session storage
+        const isGuest = new URLSearchParams(window.location.search).get('guest') === 'true';
+        const username = isGuest ? sessionStorage.getItem('guestNickname') : /*[[${#authentication != null ? #authentication.name : null}]]*/ 'guest';
+        
+        let stompClient = null;
+        let chatSessionId = null;
+        
+        function connect() {
+            const socket = new SockJS('/chat-websocket');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                console.log('Connected: ' + frame);
+                updateChatStatus('Waiting for agent...', 'bg-yellow-100 text-yellow-800');
+                
+                // For guest users, use a different subscription path
+                const subscriptionId = isGuest ? ('guest-' + username.replaceAll(' ', '_')) : username;
+                
+                // Subscribe to personal channel for messages
+                stompClient.subscribe('/user/' + subscriptionId + '/queue/messages', onMessageReceived);
+                
+                // Subscribe to session updates
+                stompClient.subscribe('/user/' + subscriptionId + '/queue/session', onSessionUpdate);
+                
+                // Join the chat
+                if (isGuest) {
+                    stompClient.send("/app/chat.join", {}, JSON.stringify({
+                        guestNickname: username
+                    }));
+                } else {
+                    stompClient.send("/app/chat.join", {}, JSON.stringify({}));
+                }
+            }, onError);
+        }
+        
+        function onError() {
+            updateChatStatus('Connection lost', 'bg-red-100 text-red-800');
+            setTimeout(connect, 5000); // Try to reconnect after 5 seconds
+        }
+        
+        function updateChatStatus(text, cssClass) {
+            const statusEl = document.getElementById('chat-status');
+            statusEl.textContent = text;
+            statusEl.className = 'ml-4 text-sm font-medium px-2 py-1 rounded-full ' + cssClass;
+        }
+        
+        function onSessionUpdate(payload) {
+            const sessionInfo = JSON.parse(payload.body);
+            chatSessionId = sessionInfo.sessionId;
+            
+            if (sessionInfo.status === 'WAITING') {
+                // Update queue position
+                document.getElementById('queue-position').textContent = sessionInfo.queuePosition;
+                document.getElementById('waiting-room').classList.remove('hidden');
+                document.getElementById('chat-interface').classList.add('hidden');
+                document.getElementById('ended-chat').classList.add('hidden');
+            } 
+            else if (sessionInfo.status === 'ACTIVE') {
+                // Agent assigned, show chat interface
+                document.getElementById('waiting-room').classList.add('hidden');
+                document.getElementById('chat-interface').classList.remove('hidden');
+                document.getElementById('ended-chat').classList.add('hidden');
+                
+                updateChatStatus('Connected', 'bg-green-100 text-green-800');
+                
+                if (sessionInfo.agentName) {
+                    document.getElementById('agent-name').textContent = sessionInfo.agentName;
+                }
+            }
+            else if (sessionInfo.status === 'CLOSED') {
+                // Chat ended
+                document.getElementById('waiting-room').classList.add('hidden');
+                document.getElementById('chat-interface').classList.add('hidden');
+                document.getElementById('ended-chat').classList.remove('hidden');
+                
+                updateChatStatus('Disconnected', 'bg-gray-100 text-gray-800');
+            }
+        }
+        
+        function onMessageReceived(payload) {
+            const message = JSON.parse(payload.body);
+            const messagesContainer = document.getElementById('chat-messages');
+            
+            const messageDiv = document.createElement('div');
+            
+            if (message.type === 'SYSTEM') {
+                messageDiv.className = 'message-bubble system-message p-3 rounded-lg';
+            } else if (message.sender.username === username) {
+                messageDiv.className = 'message-bubble customer-message p-3 rounded-lg';
+            } else {
+                messageDiv.className = 'message-bubble agent-message p-3 rounded-lg';
+            }
+            
+            messageDiv.textContent = message.content;
+            messagesContainer.appendChild(messageDiv);
+            
+            // Scroll to the bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function sendMessage(event) {
+            event.preventDefault();
+            
+            const messageInput = document.getElementById('message-input');
+            const messageContent = messageInput.value.trim();
+            
+            if (messageContent && stompClient && chatSessionId) {
+                const chatMessage = {
+                    sessionId: chatSessionId,
+                    content: messageContent
+                };
+                
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+                messageInput.value = '';
+            }
+        }
+        
+        function endChat() {
+            if (stompClient && chatSessionId) {
+                stompClient.send("/app/chat.leave", {}, JSON.stringify({
+                    sessionId: chatSessionId
+                }));
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connect to WebSocket
+            connect();
+            
+            // Set up event listeners
+            document.getElementById('message-form').addEventListener('submit', sendMessage);
+            document.getElementById('end-chat-btn').addEventListener('click', endChat);
+            document.getElementById('new-chat-btn').addEventListener('click', function() {
+                // Refresh page to start a new chat
+                window.location.reload();
+            });
+        });
+    </script>
+</body>
+</html>

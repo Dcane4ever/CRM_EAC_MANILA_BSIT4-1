@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Dashboard - Customer Support</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .font-heading { font-family: 'Montserrat', sans-serif; }
+        .status-ready { @apply bg-green-100 text-green-800 border-green-200; }
+        .status-cleanup { @apply bg-yellow-100 text-yellow-800 border-yellow-200; }
+        .status-lunch { @apply bg-orange-100 text-orange-800 border-orange-200; }
+        .status-unavailable { @apply bg-red-100 text-red-800 border-red-200; }
+    </style>
+</head>
+<body class="bg-gray-100 font-heading">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white shadow-lg">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold">Agent Dashboard</h1>
+                    <span class="ml-4 px-3 py-1 rounded-full text-sm font-medium bg-blue-500">
+                        Welcome, <span sec:authentication="name">Agent</span>
+                    </span>
+                </div>
+                
+                <!-- AUX Status Controls -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <span class="mr-2 text-sm">Status:</span>
+                        <span id="currentStatus" class="px-3 py-1 rounded-full text-sm font-medium status-ready">
+                            Ready
+                        </span>
+                    </div>
+                    
+                    <!-- AUX Dropdown -->
+                    <div class="relative">
+                        <button id="auxDropdown" class="bg-blue-500 hover:bg-blue-400 text-white px-4 py-2 rounded-lg flex items-center">
+                            <span>AUX</span>
+                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        
+                        <div id="auxMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                            <div class="py-1">
+                                <button onclick="changeAuxStatus('Ready')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <span class="inline-block w-3 h-3 bg-green-500 rounded-full mr-2"></span>
+                                    Ready
+                                </button>
+                                <button onclick="changeAuxStatus('Clean up')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <span class="inline-block w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>
+                                    Clean up
+                                </button>
+                                <button onclick="changeAuxStatus('Lunch')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <span class="inline-block w-3 h-3 bg-orange-500 rounded-full mr-2"></span>
+                                    Lunch
+                                </button>
+                                <hr class="my-1">
+                                <button onclick="endShift()" class="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+                                    <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+                                    End Shift (Logout)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow">
+            <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <!-- Agent Status Card -->
+                <div class="bg-white overflow-hidden shadow rounded-lg mb-6">
+                    <div class="p-6">
+                        <h2 class="text-lg font-medium text-gray-900 mb-4">Current Status</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="text-center p-4 bg-green-50 rounded-lg">
+                                <div class="text-2xl font-bold text-green-600" id="readyTime">0h 0m</div>
+                                <div class="text-sm text-gray-600">Ready Time Today</div>
+                            </div>
+                            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-600" id="chatCount">0</div>
+                                <div class="text-sm text-gray-600">Chats Handled</div>
+                            </div>
+                            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                                <div class="text-2xl font-bold text-purple-600" id="queueLength">0</div>
+                                <div class="text-sm text-gray-600">Customers in Queue</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Chat Console -->
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-6">
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Chat Console</h3>
+                            <p class="text-gray-600 mb-4">Access the chat interface to help customers</p>
+                            <a href="/agent/chat" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg inline-flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                                Open Chat Console
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-6">
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Quick Actions</h3>
+                            <div class="space-y-2">
+                                <button onclick="viewQueuedChats()" class="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                    <div class="font-medium">View Queued Chats</div>
+                                    <div class="text-sm text-gray-600">See customers waiting for help</div>
+                                </button>
+                                <button onclick="viewChatHistory()" class="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                    <div class="font-medium">Chat History</div>
+                                    <div class="text-sm text-gray-600">Review previous conversations</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+                        <div id="recentActivity" class="space-y-3">
+                            <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm font-medium text-gray-900">Status changed to Ready</p>
+                                    <p class="text-sm text-gray-500">Ready to accept customer chats</p>
+                                </div>
+                                <div class="ml-auto text-sm text-gray-500">
+                                    Just now
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+                <p class="text-center text-gray-500 text-sm">© 2025 TechCorp Customer Support - Agent Console</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Toggle AUX dropdown
+        document.getElementById('auxDropdown').addEventListener('click', function() {
+            const menu = document.getElementById('auxMenu');
+            menu.classList.toggle('hidden');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('auxDropdown');
+            const menu = document.getElementById('auxMenu');
+            if (!dropdown.contains(event.target) && !menu.contains(event.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Change AUX status
+        function changeAuxStatus(status) {
+            const statusElement = document.getElementById('currentStatus');
+            statusElement.textContent = status;
+            
+            // Remove all status classes
+            statusElement.className = statusElement.className.replace(/status-\w+/g, '');
+            
+            // Add appropriate status class
+            switch(status) {
+                case 'Ready':
+                    statusElement.classList.add('status-ready');
+                    break;
+                case 'Clean up':
+                    statusElement.classList.add('status-cleanup');
+                    break;
+                case 'Lunch':
+                    statusElement.classList.add('status-lunch');
+                    break;
+                default:
+                    statusElement.classList.add('status-unavailable');
+            }
+            
+            // Hide dropdown
+            document.getElementById('auxMenu').classList.add('hidden');
+            
+            // Add activity log
+            addActivityLog(`Status changed to ${status}`, getStatusDescription(status));
+            
+            // TODO: Send AJAX request to update status in backend
+            updateAgentStatus(status);
+        }
+
+        function getStatusDescription(status) {
+            switch(status) {
+                case 'Ready': return 'Ready to accept customer chats';
+                case 'Clean up': return 'Finishing up current tasks';
+                case 'Lunch': return 'On lunch break';
+                default: return 'Status updated';
+            }
+        }
+
+        // End shift (logout)
+        function endShift() {
+            if (confirm('Are you sure you want to end your shift? This will log you out.')) {
+                // Create and submit logout form
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/logout';
+                
+                // Add CSRF token if available
+                const csrfToken = document.querySelector('meta[name="_csrf"]');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_csrf';
+                    csrfInput.value = csrfToken.getAttribute('content');
+                    form.appendChild(csrfInput);
+                }
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        // Add activity log entry
+        function addActivityLog(title, description) {
+            const activityContainer = document.getElementById('recentActivity');
+            const activityItem = document.createElement('div');
+            activityItem.className = 'flex items-center p-3 bg-gray-50 rounded-lg';
+            activityItem.innerHTML = `
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-900">${title}</p>
+                    <p class="text-sm text-gray-500">${description}</p>
+                </div>
+                <div class="ml-auto text-sm text-gray-500">
+                    Just now
+                </div>
+            `;
+            
+            // Insert at the beginning
+            activityContainer.insertBefore(activityItem, activityContainer.firstChild);
+            
+            // Keep only last 5 activities
+            const activities = activityContainer.children;
+            if (activities.length > 5) {
+                activityContainer.removeChild(activities[activities.length - 1]);
+            }
+        }
+
+        // Update agent status in backend
+        function updateAgentStatus(status) {
+            const available = status === 'Ready';
+            
+            fetch('/api/agent/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    available: available,
+                    auxStatus: status
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Status updated:', data);
+            })
+            .catch(error => {
+                console.error('Error updating status:', error);
+            });
+        }
+
+        // Quick action functions
+        function viewQueuedChats() {
+            // TODO: Implement view queued chats
+            alert('Feature coming soon: View queued chats');
+        }
+
+        function viewChatHistory() {
+            // TODO: Implement chat history
+            alert('Feature coming soon: Chat history');
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial status
+            addActivityLog('Logged in', 'Agent dashboard loaded successfully');
+            
+            // TODO: Load real data from backend
+            // updateDashboardData();
+        });
+    </script>
+</body>
+</html>

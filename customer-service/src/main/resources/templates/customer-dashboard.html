@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Dashboard - Customer Support</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .font-heading { font-family: 'Montserrat', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 font-heading">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-green-600 text-white shadow-lg">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold">Customer Support</h1>
+                    <span class="ml-4 px-3 py-1 rounded-full text-sm font-medium bg-green-500">
+                        Welcome, <span sec:authentication="name">Customer</span>
+                    </span>
+                </div>
+                
+                <form th:action="@{/logout}" method="post" class="inline">
+                    <button type="submit" class="bg-green-500 hover:bg-green-400 text-white px-4 py-2 rounded-lg">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow">
+            <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <!-- Welcome Section -->
+                <div class="bg-white overflow-hidden shadow rounded-lg mb-6">
+                    <div class="p-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">How can we help you today?</h2>
+                        <p class="text-gray-600 mb-6">Get instant support through live chat or browse our help resources.</p>
+                    </div>
+                </div>
+
+                <!-- Main Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Live Chat -->
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center mb-4">
+                                <div class="flex-shrink-0">
+                                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h3 class="ml-4 text-lg font-medium text-gray-900">Live Chat Support</h3>
+                            </div>
+                            <p class="text-gray-600 mb-4">Connect with our support team for real-time assistance with your questions or issues.</p>
+                            <div class="mb-4">
+                                <div class="flex items-center text-sm text-gray-500 mb-1">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                    <span id="agentStatus">Agents available</span>
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    Average wait time: <span id="waitTime">< 2 minutes</span>
+                                </div>
+                            </div>
+                            <a href="/customer/chat" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg inline-flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                                Start Live Chat
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Anonymous Chat -->
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center mb-4">
+                                <div class="flex-shrink-0">
+                                    <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <h3 class="ml-4 text-lg font-medium text-gray-900">Anonymous Chat</h3>
+                            </div>
+                            <p class="text-gray-600 mb-4">Start a quick chat session without providing personal information.</p>
+                            <div class="mb-4">
+                                <div class="text-sm text-gray-500">
+                                    Perfect for quick questions or when you prefer to remain anonymous.
+                                </div>
+                            </div>
+                            <a href="/customer/chat-anonymous" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg inline-flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="17 8h1a1 1 0 011 1v6a1 1 0 01-1 1h-1m-6-8V6a1 1 0 011-1h4a1 1 0 011 1v2m-6 8h2a1 1 0 001-1v-4a1 1 0 00-1-1h-2a1 1 0 00-1 1v4a1 1 0 001 1z"></path>
+                                </svg>
+                                Start Anonymous Chat
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Resources -->
+                <div class="bg-white overflow-hidden shadow rounded-lg mb-6">
+                    <div class="p-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Self-Service Help</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <a href="/" class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                <div class="flex items-center mb-2">
+                                    <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <h4 class="font-medium">Help Articles</h4>
+                                </div>
+                                <p class="text-sm text-gray-600">Browse our comprehensive help documentation</p>
+                            </a>
+                            
+                            <a href="/faq" class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                <div class="flex items-center mb-2">
+                                    <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <h4 class="font-medium">FAQ</h4>
+                                </div>
+                                <p class="text-sm text-gray-600">Find answers to frequently asked questions</p>
+                            </a>
+                            
+                            <a href="/tutorials" class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                <div class="flex items-center mb-2">
+                                    <svg class="w-5 h-5 text-purple-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="14.828 14.828a4 4 0 01-5.656 0M9 10h1.01M15 10h1.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <h4 class="font-medium">Video Tutorials</h4>
+                                </div>
+                                <p class="text-sm text-gray-600">Watch step-by-step video guides</p>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Chats (if any) -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Support History</h3>
+                        <div id="recentChats" class="space-y-3">
+                            <div class="text-center py-8 text-gray-500">
+                                <svg class="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                                <p>No recent support conversations</p>
+                                <p class="text-sm">Your chat history will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+                <p class="text-center text-gray-500 text-sm">© 2025 TechCorp Customer Support</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Check agent availability
+        function checkAgentAvailability() {
+            // TODO: Implement real-time agent availability check
+            // For now, simulate availability
+            const agentStatusEl = document.getElementById('agentStatus');
+            const waitTimeEl = document.getElementById('waitTime');
+            
+            // Simulate checking availability
+            setTimeout(() => {
+                const available = Math.random() > 0.3; // 70% chance agents are available
+                
+                if (available) {
+                    agentStatusEl.textContent = 'Agents available';
+                    agentStatusEl.className = 'flex items-center text-sm text-green-600 mb-1';
+                    waitTimeEl.textContent = '< 2 minutes';
+                } else {
+                    agentStatusEl.textContent = 'All agents busy';
+                    agentStatusEl.className = 'flex items-center text-sm text-orange-600 mb-1';
+                    waitTimeEl.textContent = '3-5 minutes';
+                }
+            }, 1000);
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAgentAvailability();
+            
+            // Check availability every 30 seconds
+            setInterval(checkAgentAvailability, 30000);
+        });
+    </script>
+</body>
+</html>

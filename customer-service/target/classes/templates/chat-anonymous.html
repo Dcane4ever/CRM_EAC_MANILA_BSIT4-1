@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest Chat - Customer Support</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .font-heading { font-family: 'Montserrat', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 font-heading">
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                <h1 class="text-xl font-bold text-gray-900">Guest Chat Support</h1>
+                <a href="/" class="text-blue-600 hover:underline">Back to Home</a>
+            </div>
+        </header>
+
+        <main class="flex-grow">
+            <div class="max-w-lg mx-auto py-12 px-4">
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div class="p-6">
+                        <h2 class="text-xl font-semibold mb-4">Chat as a Guest</h2>
+                        <p class="text-gray-600 mb-6">Please enter a nickname to start chatting with our support team.</p>
+                        
+                        <form id="nickname-form" class="mb-4">
+                            <div class="mb-4">
+                                <label for="nickname" class="block text-gray-700 text-sm font-bold mb-2">Nickname</label>
+                                <input type="text" id="nickname" name="nickname" required minlength="3" maxlength="20"
+                                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <p class="text-xs text-gray-500 mt-1">3-20 characters</p>
+                            </div>
+                            
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                Start Chat
+                            </button>
+                        </form>
+                        
+                        <div class="text-center text-sm">
+                            <span class="text-gray-600">Want to save your chat history?</span>
+                            <a href="/register" class="ml-1 text-blue-600 hover:underline">Create an account</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.getElementById('nickname-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nickname = document.getElementById('nickname').value.trim();
+            if (nickname) {
+                // Store the nickname in session storage
+                sessionStorage.setItem('guestNickname', nickname);
+                // Redirect to the chat page
+                window.location.href = '/customer/chat?guest=true';
+            }
+        });
+    </script>
+</body>
+</html>

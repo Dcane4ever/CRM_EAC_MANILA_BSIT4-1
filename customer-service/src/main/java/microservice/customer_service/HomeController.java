@@ -9,11 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class HomeController {
     @Autowired
 
-// Root URL (http://localhost:8080/)
-    @GetMapping("/")
-    public String home() {
-        return "LandingPage"; // This matches LandingPage.html in templates
-    }
+// Root URL mapping removed to avoid conflict with WebController
     // Optional: http://localhost:8080/LandingPage
     @GetMapping("/LandingPage")
     public String landingPage() {

@@ -1,0 +1,66 @@
+-- Sample users data
+-- Password for all accounts is: password
+INSERT INTO users (username, password, email, role, available, guest) VALUES
+('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.', 'admin@techcorp.com', 'ADMIN', true, false),
+('agent1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.', 'agent1@techcorp.com', 'AGENT', true, false),
+('customer1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.', 'customer1@email.com', 'CUSTOMER', true, false);
+
+-- Help topics data
+INSERT INTO help_topic (id, description, title, url) VALUES
+(1, 'Step-by-step guide to reset your TechCorp account password.', 'How to reset your password', '/faq#reset-password'),
+(2, 'Find your order status and shipping information.', 'Track your order', '/faq#track-order'),
+(3, 'Ways to reach our technical support team for device issues.', 'Contact technical support', '/faq#contact-support'),
+(4, 'Best practices for keeping your account safe.', 'Account security tips', '/faq#security-tips'),
+(5, 'Instructions to update your registered email address.', 'Change your email address', '/faq#change-email'),
+(6, 'Learn about our refund and return policies.', 'Refund policy details', '/faq#refund-policy'),
+(7, 'Common solutions for login problems.', 'Troubleshooting login issues', '/faq#login-troubleshoot'),
+(8, 'All available support channels and contact options.', 'How to contact support', '/faq#contact-options');
+
+-- Help topic steps data
+INSERT INTO help_topic_steps (help_topic_id, steps) VALUES
+(1, 'Go to the login page and click "Forgot Password".'),
+(1, 'Enter your registered email address.'),
+(1, 'Check your email for a password reset link.'),
+(1, 'Click the link and enter a new password.'),
+(1, 'Log in with your new password.'),
+(2, 'Log into your account or go to the order tracking page.'),
+(2, 'Enter your order number and email address used for the purchase.'),
+(2, 'Click "Track Order" to view current status.'),
+(2, 'Check the tracking information for estimated delivery date.'),
+(2, 'Contact support if tracking shows any issues or delays.'),
+(3, 'Visit the technical support section on our website.'),
+(3, 'Choose your product category from the dropdown menu.'),
+(3, 'Select the specific issue you are experiencing.'),
+(3, 'Fill out the support form with detailed information about your problem.'),
+(3, 'Attach any relevant screenshots or error messages.'),
+(3, 'Submit the form and note your support ticket number for reference.'),
+(4, 'Log into your account and go to Account Settings.'),
+(4, 'Click on "Security" or "Privacy Settings".'),
+(4, 'Review your current security settings and recent login activity.'),
+(4, 'Update your password if you suspect unauthorized access.'),
+(4, 'Enable two-factor authentication for added security.'),
+(4, 'Review and update your recovery email and phone number.'),
+(5, 'Log into your account and navigate to Account Settings.'),
+(5, 'Click on "Personal Information" or "Profile Settings".'),
+(5, 'Locate the email address field and click "Edit" or "Change".'),
+(5, 'Enter your new email address in the provided field.'),
+(5, 'Verify the change by clicking the confirmation link sent to your new email.'),
+(5, 'Log in again using your new email address to confirm the change.'),
+(6, 'Review our refund policy on the website or in your purchase confirmation.'),
+(6, 'Ensure your request falls within the eligible timeframe for refunds.'),
+(6, 'Gather your order information including order number and purchase date.'),
+(6, 'Contact customer service through the refund request form.'),
+(6, 'Provide reason for refund and any supporting documentation.'),
+(6, 'Wait for approval and follow instructions for returning the item if applicable.'),
+(7, 'Clear your browser cache and cookies.'),
+(7, 'Try logging in using a different browser or incognito/private mode.'),
+(7, 'Verify you are using the correct email address and password.'),
+(7, 'Check if Caps Lock is on and ensure correct capitalization.'),
+(7, 'Try resetting your password if login attempts continue to fail.'),
+(7, 'Contact technical support if the issue persists after trying these steps.'),
+(8, 'Visit the "Contact Us" or "Support" section of our website.'),
+(8, 'Choose the most appropriate contact method for your issue (chat, email, phone).'),
+(8, 'For live chat: click the chat icon and wait to be connected with an agent.'),
+(8, 'For email support: fill out the contact form with detailed information.'),
+(8, 'For phone support: call during business hours and have your account information ready.'),
+(8, 'Save any reference numbers or ticket IDs provided for future follow-up.');
