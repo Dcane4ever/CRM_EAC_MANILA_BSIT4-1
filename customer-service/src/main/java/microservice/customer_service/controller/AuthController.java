@@ -2,6 +2,7 @@ package microservice.customer_service.controller;
 
 import lombok.RequiredArgsConstructor;
 import microservice.customer_service.model.User;
+import microservice.customer_service.service.ChatService;
 import microservice.customer_service.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -18,6 +19,7 @@ import java.util.Optional;
 public class AuthController {
     
     private final UserService userService;
+    private final ChatService chatService;
     private static final String AGENT_REGISTRATION_CODE = "AGENT123"; // This would be stored securely in a real app
     
     @GetMapping("/login")
@@ -117,7 +119,17 @@ public class AuthController {
     }
     
     @GetMapping("/agent/chat")
-    public String agentChatPage(Model model) {
+    public String agentChatPage(Model model, Authentication authentication) {
+        // Add waiting customers to the model so they show up in the agent interface
+        model.addAttribute("waitingCustomers", chatService.getWaitingCustomers());
+        
+        // Add authenticated user info to the model
+        if (authentication != null && authentication.isAuthenticated()) {
+            model.addAttribute("username", authentication.getName());
+        } else {
+            model.addAttribute("username", "agent");
+        }
+        
         return "agent-chat";
     }
 }

@@ -1,5 +1,6 @@
 package microservice.customer_service.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -35,6 +36,7 @@ public class ChatSession {
     private LocalDateTime endedAt;
     
     @OneToMany(mappedBy = "chatSession", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<ChatMessage> messages = new ArrayList<>();
     
     public enum ChatStatus {

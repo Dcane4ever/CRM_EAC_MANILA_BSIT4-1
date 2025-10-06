@@ -52,11 +52,11 @@
                             </div>
                             
                             <div id="customer-queue" class="queue-list divide-y divide-gray-200">
-                                <div th:each="session : ${waitingCustomers}" class="p-4 hover:bg-gray-50 cursor-pointer customer-queue-item" th:data-session-id="${session.id}">
+                                <div th:each="chatSession : ${waitingCustomers}" class="p-4 hover:bg-gray-50 cursor-pointer customer-queue-item" th:data-session-id="${chatSession.id}">
                                     <div class="flex justify-between items-center">
                                         <div>
-                                            <p class="font-medium" th:text="${session.customer.username}">Customer</p>
-                                            <p class="text-sm text-gray-500" th:text="${'Waiting since: ' + #temporals.format(session.createdAt, 'HH:mm')}">Waiting since: 12:45</p>
+                                            <p class="font-medium" th:text="${chatSession.customer.username}">Customer</p>
+                                            <p class="text-sm text-gray-500" th:text="${'Waiting since: ' + #temporals.format(chatSession.createdAt, 'HH:mm')}">Waiting since: 12:45</p>
                                         </div>
                                         <button class="accept-chat-btn bg-green-600 hover:bg-green-700 text-white text-sm py-1 px-3 rounded">
                                             Accept
@@ -130,7 +130,7 @@
     </div>
     
     <script th:inline="javascript">
-        const username = /*[[${#authentication.name}]]*/ 'agent';
+        const username = /*[[${username}]]*/ 'agent';
         let stompClient = null;
         let currentChatId = null;
         let isAvailable = true;
@@ -154,6 +154,9 @@
                 
                 // Set agent availability
                 toggleAvailability(isAvailable);
+                
+                // Refresh queue list on connect
+                refreshQueueList();
             }, onError);
         }
         
@@ -169,14 +172,79 @@
         }
         
         function onQueueUpdate(payload) {
+            console.log('Queue update received:', payload.body);
             const update = JSON.parse(payload.body);
-            document.getElementById('queue-count').textContent = update.queueSize;
             
-            // If the queue has been updated, refresh the page to get latest data
-            if (update.action === 'NEW_CUSTOMER') {
-                // Could make an AJAX call instead to avoid full page refresh
-                window.location.reload();
+            // Update queue count if available
+            if (update.queueSize !== undefined) {
+                document.getElementById('queue-count').textContent = update.queueSize;
             }
+            
+            // If a new customer joined or chat was accepted, refresh the queue list
+            if (update.type === 'NEW_CUSTOMER' || update.type === 'CHAT_ACCEPTED') {
+                console.log('Queue update detected, refreshing queue list');
+                refreshQueueList();
+            }
+        }
+        
+        function refreshQueueList() {
+            console.log('Refreshing queue list...');
+            fetch('/api/chat/waiting-customers')
+                .then(response => response.json())
+                .then(customers => {
+                    console.log('Received customers:', customers);
+                    const queueContainer = document.getElementById('customer-queue');
+                    
+                    // Update queue count
+                    document.getElementById('queue-count').textContent = customers.length;
+                    
+                    // Clear existing queue items
+                    queueContainer.innerHTML = '';
+                    
+                    if (customers.length === 0) {
+                        queueContainer.innerHTML = `
+                            <div id="empty-queue-message" class="p-6 text-center text-gray-500">
+                                No customers waiting
+                            </div>
+                        `;
+                    } else {
+                        customers.forEach(customer => {
+                            const queueItem = document.createElement('div');
+                            queueItem.className = 'p-4 hover:bg-gray-50 cursor-pointer customer-queue-item';
+                            queueItem.setAttribute('data-session-id', customer.id);
+                            queueItem.innerHTML = `
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <p class="font-medium">${customer.customer.username}</p>
+                                        <p class="text-sm text-gray-500">Waiting since: ${new Date(customer.createdAt).toLocaleTimeString()}</p>
+                                    </div>
+                                    <button class="accept-chat-btn bg-green-600 hover:bg-green-700 text-white text-sm py-1 px-3 rounded">
+                                        Accept
+                                    </button>
+                                </div>
+                            `;
+                            
+                            // Add click event listener
+                            queueItem.addEventListener('click', function(e) {
+                                if (!e.target.classList.contains('accept-chat-btn')) {
+                                    acceptChat(customer.id);
+                                }
+                            });
+                            
+                            // Add button click event listener
+                            const acceptBtn = queueItem.querySelector('.accept-chat-btn');
+                            acceptBtn.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                acceptChat(customer.id);
+                            });
+                            
+                            queueContainer.appendChild(queueItem);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing queue:', error);
+                });
         }
         
         function onSessionUpdate(payload) {
@@ -280,9 +348,11 @@
         
         function onMessageReceived(payload) {
             const message = JSON.parse(payload.body);
+            console.log('Agent received message:', message);
             
             // Only show messages for the current chat
-            if (message.chatSession.id !== currentChatId) {
+            if (message.sessionId && currentChatId && message.sessionId != currentChatId) {
+                console.log('Message for different session, ignoring');
                 return;
             }
             
@@ -331,12 +401,14 @@
         }
         
         function toggleAvailability(available) {
+            console.log('Setting agent availability to:', available);
             isAvailable = available;
             
             const statusLabel = document.querySelector('#availability-toggle span');
             statusLabel.textContent = available ? 'Available' : 'Unavailable';
             
             if (stompClient) {
+                console.log('Sending agent availability update');
                 stompClient.send("/app/agent.available", {}, JSON.stringify({
                     available: available
                 }));

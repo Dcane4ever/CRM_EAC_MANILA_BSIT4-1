@@ -120,14 +120,16 @@
                 console.log('Connected: ' + frame);
                 updateChatStatus('Waiting for agent...', 'bg-yellow-100 text-yellow-800');
                 
-                // For guest users, use a different subscription path
-                const subscriptionId = isGuest ? ('guest-' + username.replaceAll(' ', '_')) : username;
-                
-                // Subscribe to personal channel for messages
-                stompClient.subscribe('/user/' + subscriptionId + '/queue/messages', onMessageReceived);
-                
-                // Subscribe to session updates
-                stompClient.subscribe('/user/' + subscriptionId + '/queue/session', onSessionUpdate);
+                if (isGuest) {
+                    // For guest users, subscribe to a general topic first using guest ID
+                    const guestId = 'guest-' + username.replaceAll(' ', '_');
+                    console.log('Guest user subscribing to initial topic: /topic/guest/' + guestId);
+                    stompClient.subscribe('/topic/guest/' + guestId, onSessionUpdate);
+                } else {
+                    // For registered users, use user-specific destinations  
+                    stompClient.subscribe('/user/' + username + '/queue/messages', onMessageReceived);
+                    stompClient.subscribe('/user/' + username + '/queue/session', onSessionUpdate);
+                }
                 
                 // Join the chat
                 if (isGuest) {
@@ -153,16 +155,26 @@
         
         function onSessionUpdate(payload) {
             const sessionInfo = JSON.parse(payload.body);
+            console.log('Session update received:', sessionInfo);
             chatSessionId = sessionInfo.sessionId;
+            
+            // For guest users, subscribe to session-specific message topic after getting session ID
+            if (isGuest && sessionInfo.sessionId && !window.sessionMessagesSubscribed) {
+                console.log('Subscribing to session messages for session ID:', sessionInfo.sessionId);
+                stompClient.subscribe('/topic/session/' + sessionInfo.sessionId + '/messages', onMessageReceived);
+                window.sessionMessagesSubscribed = true;
+            }
             
             if (sessionInfo.status === 'WAITING') {
                 // Update queue position
-                document.getElementById('queue-position').textContent = sessionInfo.queuePosition;
+                document.getElementById('queue-position').textContent = sessionInfo.queuePosition || 1;
                 document.getElementById('waiting-room').classList.remove('hidden');
                 document.getElementById('chat-interface').classList.add('hidden');
                 document.getElementById('ended-chat').classList.add('hidden');
+                console.log('Customer in waiting room, position:', sessionInfo.queuePosition);
             } 
             else if (sessionInfo.status === 'ACTIVE') {
+                console.log('Customer session is now ACTIVE, switching to chat interface');
                 // Agent assigned, show chat interface
                 document.getElementById('waiting-room').classList.add('hidden');
                 document.getElementById('chat-interface').classList.remove('hidden');

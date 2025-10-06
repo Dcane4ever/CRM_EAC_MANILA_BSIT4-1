@@ -30,7 +30,12 @@ public class UserService {
     }
 
     public List<User> findAvailableAgents() {
-        return userRepository.findByRoleAndAvailable(User.Role.AGENT, true);
+        List<User> agents = userRepository.findByRoleAndAvailable(User.Role.AGENT, true);
+        System.out.println("UserService.findAvailableAgents() found: " + agents.size() + " agents");
+        for (User agent : agents) {
+            System.out.println("Available agent: " + agent.getUsername() + " (available: " + agent.isAvailable() + ")");
+        }
+        return agents;
     }
 
     public User updateAgentAvailability(Long agentId, boolean available) {

@@ -1,5 +1,6 @@
 package microservice.customer_service.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,6 +19,7 @@ public class ChatMessage {
     
     @ManyToOne
     @JoinColumn(name = "chat_session_id", nullable = false)
+    @JsonIgnore
     private ChatSession chatSession;
     
     @ManyToOne

@@ -29,27 +29,71 @@ public class ChatWebSocketController {
         Long sessionId = Long.parseLong(payload.get("sessionId"));
         String content = payload.get("content");
         
-        userService.findByUsername(principal.getName()).ifPresent(user -> {
-            ChatMessage message = chatService.addMessage(sessionId, user, content);
-            
-            // Send to specific users in the chat session
-            ChatSession session = message.getChatSession();
-            
-            // Send to both customer and agent topics
+        System.out.println("Received message for session " + sessionId + ": " + content);
+        System.out.println("Principal: " + (principal != null ? principal.getName() : "null (guest user)"));
+        
+        // Handle both guest users (no principal) and registered users
+        if (principal != null) {
+            // Registered user (agent)
+            userService.findByUsername(principal.getName()).ifPresent(user -> {
+                System.out.println("Found registered user: " + user.getUsername());
+                sendChatMessage(sessionId, content, user);
+            });
+        } else {
+            // Guest user - find customer by session
+            chatService.getSessionById(sessionId).ifPresent(session -> {
+                User customer = session.getCustomer();
+                if (customer != null && customer.isGuest()) {
+                    System.out.println("Found guest customer: " + customer.getUsername());
+                    sendChatMessage(sessionId, content, customer);
+                }
+            });
+        }
+    }
+    
+    private void sendChatMessage(Long sessionId, String content, User sender) {
+        System.out.println("Sending message from " + sender.getUsername() + " (guest: " + sender.isGuest() + ")");
+        ChatMessage message = chatService.addMessage(sessionId, sender, content);
+        
+        // Create a message DTO with session ID since chatSession is @JsonIgnore
+        Map<String, Object> messageDto = new HashMap<>();
+        messageDto.put("id", message.getId());
+        messageDto.put("sessionId", sessionId);
+        messageDto.put("sender", message.getSender());
+        messageDto.put("content", message.getContent());
+        messageDto.put("timestamp", message.getTimestamp());
+        messageDto.put("type", message.getType());
+        
+        // Send to specific users in the chat session
+        ChatSession session = message.getChatSession();
+        
+        // Send to customer - handle guest vs registered differently
+        if (session.getCustomer().isGuest()) {
+            // For guest users, send messages to session-specific topic
+            System.out.println("Sending to guest customer via topic: /topic/session/" + sessionId + "/messages");
+            messagingTemplate.convertAndSend(
+                "/topic/session/" + sessionId + "/messages",
+                messageDto
+            );
+        } else {
+            // For registered users, send to user-specific destination
+            System.out.println("Sending to registered customer: " + session.getCustomer().getUsername());
             messagingTemplate.convertAndSendToUser(
                 session.getCustomer().getUsername(),
                 "/queue/messages",
-                message
+                messageDto
             );
-            
-            if (session.getAgent() != null) {
-                messagingTemplate.convertAndSendToUser(
-                    session.getAgent().getUsername(),
-                    "/queue/messages",
-                    message
-                );
-            }
-        });
+        }
+        
+        // Always send to agent (registered user)
+        if (session.getAgent() != null) {
+            System.out.println("Sending to agent: " + session.getAgent().getUsername());
+            messagingTemplate.convertAndSendToUser(
+                session.getAgent().getUsername(),
+                "/queue/messages",
+                messageDto
+            );
+        }
     }
     
     @MessageMapping("/chat.join")
@@ -57,9 +101,11 @@ public class ChatWebSocketController {
         // Handle guest chat
         if (payload.containsKey("guestNickname")) {
             String nickname = payload.get("guestNickname");
+            System.out.println("Creating anonymous chat session for: " + nickname);
             
             // Create anonymous chat session
             ChatSession session = chatService.createAnonymousChatSession(nickname);
+            System.out.println("Created session with ID: " + session.getId() + ", Status: " + session.getStatus());
             
             // Send session info to guest
             Map<String, Object> sessionInfo = new HashMap<>();
@@ -67,12 +113,12 @@ public class ChatWebSocketController {
             sessionInfo.put("status", session.getStatus());
             sessionInfo.put("queuePosition", chatService.getQueuePosition(session.getId()));
             
-            // Using a custom principal name for the anonymous user
-            String anonymousId = "guest-" + nickname.replaceAll("\\s", "_");
+            // For guest users, send to guest-specific topic first
+            String guestTopic = "/topic/guest/guest-" + nickname.replaceAll("\\s", "_");
+            System.out.println("Sending session info to guest user via topic: " + guestTopic);
             
-            messagingTemplate.convertAndSendToUser(
-                anonymousId,
-                "/queue/session",
+            messagingTemplate.convertAndSend(
+                guestTopic,
                 sessionInfo
             );
             
@@ -87,8 +133,10 @@ public class ChatWebSocketController {
         // Handle logged-in user chat
         userService.findByUsername(principal.getName()).ifPresent(user -> {
             if (user.getRole() == User.Role.CUSTOMER) {
+                System.out.println("Creating chat session for logged-in customer: " + user.getUsername());
                 // Customer joining - create a new chat session
                 ChatSession session = chatService.createChatSession(user);
+                System.out.println("Created session with ID: " + session.getId() + ", Status: " + session.getStatus());
                 
                 // Send session info to customer
                 Map<String, Object> sessionInfo = new HashMap<>();
@@ -103,9 +151,11 @@ public class ChatWebSocketController {
                 );
                 
                 // Notify available agents of a new customer in queue
+                int queueSize = chatService.getWaitingCustomers().size();
+                System.out.println("Sending queue update - NEW_CUSTOMER, queueSize: " + queueSize);
                 messagingTemplate.convertAndSend(
                     "/topic/queue-updates",
-                    Map.of("action", "NEW_CUSTOMER", "queueSize", chatService.getWaitingCustomers().size())
+                    Map.of("action", "NEW_CUSTOMER", "queueSize", queueSize)
                 );
             }
         });
@@ -123,8 +173,13 @@ public class ChatWebSocketController {
             endInfo.put("sessionId", endedSession.getId());
             endInfo.put("status", "CLOSED");
             
+            String customerDestination = endedSession.getCustomer().getUsername();
+            if (endedSession.getCustomer().isGuest()) {
+                customerDestination = "guest-" + endedSession.getCustomer().getUsername().replaceAll("\\s", "_");
+            }
+            
             messagingTemplate.convertAndSendToUser(
-                endedSession.getCustomer().getUsername(),
+                customerDestination,
                 "/queue/session",
                 endInfo
             );
@@ -148,16 +203,18 @@ public class ChatWebSocketController {
     @MessageMapping("/agent.available")
     public void setAgentAvailability(@Payload Map<String, Object> payload, Principal principal) {
         boolean available = (boolean) payload.get("available");
+        System.out.println("Setting agent availability - Agent: " + principal.getName() + ", Available: " + available);
         
         userService.findByUsername(principal.getName()).ifPresent(agent -> {
             if (agent.getRole() == User.Role.AGENT) {
                 userService.updateAgentAvailability(agent.getId(), available);
+                System.out.println("Updated agent " + agent.getUsername() + " availability to: " + available);
                 
                 if (available) {
-                    // Process waiting customers if agent becomes available
-                    chatService.getWaitingCustomers().stream()
-                        .findFirst()
-                        .ifPresent(chatService::assignAgentIfAvailable);
+                    // Agent became available - but don't auto-assign, wait for manual accept
+                    int waitingCount = chatService.getWaitingCustomers().size();
+                    System.out.println("Agent became available, " + waitingCount + " customers waiting for manual accept");
+                    // Don't auto-assign - agents must manually accept customers
                 }
             }
         });
