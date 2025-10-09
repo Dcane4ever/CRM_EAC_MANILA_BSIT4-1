@@ -1,5 +1,11 @@
-# Use Maven image for building
-FROM maven:3.9-openjdk-21-slim AS build
+# Use OpenJDK 21 and install Maven
+FROM openjdk:21-jdk-slim AS build
+
+# Install Maven
+RUN apt-get update && \
+    apt-get install -y maven && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
