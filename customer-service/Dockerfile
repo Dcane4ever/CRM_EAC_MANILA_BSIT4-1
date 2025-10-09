@@ -1,5 +1,5 @@
 # Use Maven image for building
-FROM maven:3.8.4-openjdk-17-slim AS build
+FROM maven:3.9.9-openjdk-21-slim AS build
 
 # Set working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -Dspring.profiles.active=prod
 
 # Use OpenJDK for runtime
-FROM openjdk:17-jdk-slim
+FROM openjdk:21-jdk-slim
 
 # Set working directory
 WORKDIR /app
