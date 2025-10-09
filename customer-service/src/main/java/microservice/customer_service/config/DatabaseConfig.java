@@ -21,9 +21,16 @@ public class DatabaseConfig {
             try {
                 URI dbUri = new URI(databaseUrl);
                 
-                String jdbcUrl = "jdbc:postgresql://" + dbUri.getHost() + ":" + dbUri.getPort() + dbUri.getPath();
+                // Handle default PostgreSQL port if not specified
+                int port = dbUri.getPort() == -1 ? 5432 : dbUri.getPort();
+                
+                String jdbcUrl = "jdbc:postgresql://" + dbUri.getHost() + ":" + port + dbUri.getPath();
                 String username = dbUri.getUserInfo().split(":")[0];
                 String password = dbUri.getUserInfo().split(":")[1];
+                
+                System.out.println("DatabaseConfig: Converting URL to JDBC format");
+                System.out.println("Original URL: " + databaseUrl);
+                System.out.println("JDBC URL: " + jdbcUrl);
                 
                 return DataSourceBuilder.create()
                     .url(jdbcUrl)
