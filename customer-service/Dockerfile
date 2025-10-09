@@ -1,29 +1,32 @@
-# Use OpenJDK 17 as base image
-FROM openjdk:17-jdk-slim
+# Use Maven image for building
+FROM maven:3.8.4-openjdk-17-slim AS build
 
 # Set working directory
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml
-COPY mvnw .
-COPY mvnw.cmd .
+# Copy pom.xml first for better Docker layer caching
 COPY pom.xml .
-COPY .mvn .mvn
 
-# Make Maven wrapper executable
-RUN chmod +x ./mvnw
-
-# Download dependencies (for better Docker layer caching)
-RUN ./mvnw dependency:go-offline -B
+# Download dependencies
+RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY src ./src
 
 # Build the application
-RUN ./mvnw clean package -DskipTests -Dspring.profiles.active=prod
+RUN mvn clean package -DskipTests -Dspring.profiles.active=prod
+
+# Use OpenJDK for runtime
+FROM openjdk:17-jdk-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy the built JAR from build stage
+COPY --from=build /app/target/customer-service-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose port
 EXPOSE 8080
 
 # Run the application
-CMD ["java", "-Dspring.profiles.active=prod", "-jar", "target/customer-service-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
