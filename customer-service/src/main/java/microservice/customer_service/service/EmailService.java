@@ -17,7 +17,7 @@ public class EmailService {
             message.setTo(toEmail);
             message.setSubject("CRM Customer Service - Email Verification");
             message.setText(buildVerificationEmailContent(username, verificationToken));
-            message.setFrom("carwashpimentel@gmail.com"); // Use your actual Gmail address
+            message.setFrom("carwashpimentel@gmail.com"); // Will be configured via environment variables
             
             System.out.println("📧 Sending verification email to: " + toEmail);
             mailSender.send(message);
@@ -31,7 +31,8 @@ public class EmailService {
     }
     
     private String buildVerificationEmailContent(String username, String verificationToken) {
-        String baseUrl = "http://localhost:8080"; // Update this for production
+        String baseUrl = System.getenv("RENDER_EXTERNAL_URL") != null ? 
+            System.getenv("RENDER_EXTERNAL_URL") : "http://localhost:8080";
         String verificationUrl = baseUrl + "/verify-email?token=" + verificationToken;
         
         return String.format(
@@ -54,7 +55,7 @@ public class EmailService {
             message.setTo(toEmail);
             message.setSubject("Welcome to CRM Customer Service!");
             message.setText(buildWelcomeEmailContent(username));
-            message.setFrom("carwashpimentel@gmail.com"); // Use your actual Gmail address
+            message.setFrom("carwashpimentel@gmail.com"); // Will be configured via environment variables
             
             System.out.println("📧 Sending welcome email to: " + toEmail);
             mailSender.send(message);
