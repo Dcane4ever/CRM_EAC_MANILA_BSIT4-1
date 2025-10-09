@@ -25,7 +25,8 @@ public class UserService {
         }
         
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setEmailVerified(false); // New users need email verification
+        // Don't override emailVerified - let AuthController set it
+        // user.setEmailVerified(false); // New users need email verification
         return userRepository.save(user);
     }
     
