@@ -45,14 +45,17 @@ public class AuthController {
     public String registerCustomer(User user, RedirectAttributes redirectAttributes) {
         try {
             user.setRole(User.Role.CUSTOMER);
-            User savedUser = userService.registerUser(user);
+            // Auto-verify user in production (email disabled)
+            user.setEmailVerified(true);
             
-            // Send verification email
-            emailVerificationService.sendVerificationEmail(savedUser);
+            userService.registerUser(user);
+            
+            // Skip email verification for production
+            // emailVerificationService.sendVerificationEmail(savedUser);
             
             redirectAttributes.addFlashAttribute("message", 
-                "Registration successful! Please check your email to verify your account before logging in.");
-            return "redirect:/login?verification-sent";
+                "Registration successful! You can now log in.");
+            return "redirect:/login";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Registration failed: " + e.getMessage());
             return "redirect:/register";
@@ -70,13 +73,16 @@ public class AuthController {
         
         try {
             user.setRole(User.Role.AGENT);
-            User savedUser = userService.registerUser(user);
+            // Auto-verify agent in production (email disabled)
+            user.setEmailVerified(true);
             
-            // Send verification email
-            emailVerificationService.sendVerificationEmail(savedUser);
+            userService.registerUser(user);
+            
+            // Skip email verification for production
+            // emailVerificationService.sendVerificationEmail(savedUser);
             
             redirectAttributes.addFlashAttribute("success", 
-                "Agent registration successful! Please check your email to verify your account before logging in.");
+                "Agent registration successful! You can now log in.");
             return "redirect:/register-agent";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Registration failed: " + e.getMessage());
