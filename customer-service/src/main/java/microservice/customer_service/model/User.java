@@ -33,6 +33,15 @@ public class User {
     @Column(nullable = false)
     private boolean guest = false;
     
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+    
+    @Column
+    private String verificationToken;
+    
+    @Column
+    private java.time.LocalDateTime tokenExpiryDate;
+    
     public enum Role {
         CUSTOMER,
         AGENT,

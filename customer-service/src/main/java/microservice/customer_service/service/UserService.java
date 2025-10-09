@@ -16,7 +16,16 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     public User registerUser(User user) {
+        // Check if username or email already exists
+        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+            throw new RuntimeException("Username already exists");
+        }
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists");
+        }
+        
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setEmailVerified(false); // New users need email verification
         return userRepository.save(user);
     }
     
@@ -43,5 +52,9 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Agent not found"));
         agent.setAvailable(available);
         return userRepository.save(agent);
+    }
+    
+    public User save(User user) {
+        return userRepository.save(user);
     }
 }

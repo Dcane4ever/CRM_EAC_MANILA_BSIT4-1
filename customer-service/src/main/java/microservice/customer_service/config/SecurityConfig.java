@@ -36,6 +36,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/home", "/index", "/LandingPage", "/topic/**", "/js/**", "/css/**").permitAll()
                 .requestMatchers("/login/**", "/register/**", "/register-agent/**").permitAll()
+                .requestMatchers("/verify-email/**", "/resend-verification/**").permitAll()
                 .requestMatchers("/chat-websocket/**").permitAll()
                 .requestMatchers("/customer/chat", "/customer/chat-anonymous").permitAll()
                 .requestMatchers("/api/agent/**").hasAnyRole("AGENT", "ADMIN")

@@ -42,17 +42,81 @@
     <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-4xl mx-auto px-4 flex items-center justify-between h-16">
             <h1 class="text-2xl font-black text-black">TechCorp</h1>
-            <nav class="space-x-6">
+            <nav class="flex items-center space-x-6">
                 <a href="#topics" class="hover:text-blue-600 transition-colors font-medium">Topics</a>
                 <a href="#contact" class="hover:text-blue-600 transition-colors font-medium">Contact</a>
-                <a href="/login" class="bg-blue-600 text-white px-4 py-2 rounded font-medium hover:bg-blue-700 transition-colors">Login</a>
+                
+                <!-- Show different content based on login status -->
+                <div th:if="${!isLoggedIn}">
+                    <a href="/login" class="bg-blue-600 text-white px-4 py-2 rounded font-medium hover:bg-blue-700 transition-colors">Login</a>
+                </div>
+                
+                <!-- User dropdown when logged in -->
+                <div th:if="${isLoggedIn}" class="relative">
+                    <button id="userDropdown" class="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-full transition-colors">
+                        <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-medium">
+                            <span th:text="${username != null ? username.substring(0,1).toUpperCase() : 'U'}">U</span>
+                        </div>
+                        <span th:text="${username}" class="font-medium">Username</span>
+                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Dropdown menu -->
+                    <div id="dropdownMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 hidden">
+                        <div class="py-1">
+                            <div class="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
+                                <div class="font-medium" th:text="${username}">Username</div>
+                                <div class="text-xs text-gray-500" th:text="${userRole}">Role</div>
+                            </div>
+                            
+                            <!-- Customer-specific options -->
+                            <div th:if="${userRole == 'CUSTOMER'}">
+                                <a href="/customer/dashboard" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Dashboard
+                                </a>
+                                <a href="/customer/chat" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Start Chat
+                                </a>
+                            </div>
+                            
+                            <!-- Agent-specific options -->
+                            <div th:if="${userRole == 'AGENT'}">
+                                <a href="/agent/dashboard" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Agent Dashboard
+                                </a>
+                                <a href="/agent/chat" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    Chat Console
+                                </a>
+                            </div>
+                            
+                            <div class="border-t border-gray-200">
+                                <form th:action="@{/logout}" method="post" class="block">
+                                    <button type="submit" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                                        Sign Out
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </nav>
         </div>
     </header>
 
     <!-- Hero/Search -->
     <section class="py-16 text-center bg-white">
-        <h2 class="text-4xl font-black mb-4">How can we help you?</h2>
+        <!-- Personalized greeting for logged-in users -->
+        <div th:if="${isLoggedIn}" class="mb-4">
+            <h2 class="text-4xl font-black mb-2">Welcome back, <span th:text="${username}">User</span>!</h2>
+            <p class="text-gray-600">How can we help you today?</p>
+        </div>
+        
+        <!-- Default greeting for guests -->
+        <div th:if="${!isLoggedIn}">
+            <h2 class="text-4xl font-black mb-4">How can we help you?</h2>
+        </div>
         <div class="search-container max-w-xl mx-auto">
             <form class="flex shadow rounded-lg overflow-hidden" onsubmit="handleSearch(event)">
                 <input 
@@ -124,7 +188,21 @@
                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                 </div>
                 <h4 class="font-bold mb-2 text-black">Live Chat</h4>
-                <a href="/customer/chat-anonymous" class="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors">Start Chat</a>
+                
+                <!-- Show different chat options based on login status -->
+                <div th:if="${!isLoggedIn}">
+                    <a href="/customer/chat-anonymous" class="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors mb-2 block">Chat as Guest</a>
+                    <a href="/login" class="text-blue-600 hover:text-blue-800 text-sm">or Login to Chat</a>
+                </div>
+                
+                <div th:if="${isLoggedIn && userRole == 'CUSTOMER'}">
+                    <a href="/customer/chat" class="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors mb-2 block">Start Chat</a>
+                    <p class="text-sm text-gray-600">Logged in as <span th:text="${username}" class="font-medium"></span></p>
+                </div>
+                
+                <div th:if="${isLoggedIn && userRole == 'AGENT'}">
+                    <a href="/agent/chat" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">Agent Console</a>
+                </div>
             </div>
             <div class="bg-gray-100 rounded-xl p-6 shadow hover:shadow-lg transition-shadow flex flex-col items-center">
                 <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mb-3">
@@ -266,6 +344,24 @@
                 searchInput.blur();
             }
         });
+
+        // User dropdown functionality
+        const userDropdown = document.getElementById('userDropdown');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        
+        if (userDropdown && dropdownMenu) {
+            userDropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('hidden');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!userDropdown.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                    dropdownMenu.classList.add('hidden');
+                }
+            });
+        }
     </script>
 </body>
 </html>

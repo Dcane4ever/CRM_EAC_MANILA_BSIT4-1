@@ -35,7 +35,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .accountExpired(false)
                 .accountLocked(false)
                 .credentialsExpired(false)
-                .disabled(false)
+                .disabled(!user.isEmailVerified()) // Disable account if email not verified
                 .build();
     }
 }

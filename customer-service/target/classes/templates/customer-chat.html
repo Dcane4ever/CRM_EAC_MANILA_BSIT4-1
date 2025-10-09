@@ -187,12 +187,24 @@
                 }
             }
             else if (sessionInfo.status === 'CLOSED') {
-                // Chat ended
+                // Chat ended - show thank you message and redirect
+                console.log('Chat session ended, showing thank you message');
+                
+                // Show thank you message
+                alert(sessionInfo.message || 'Thank you for using our chat service!');
+                
+                // Hide all chat interfaces
                 document.getElementById('waiting-room').classList.add('hidden');
                 document.getElementById('chat-interface').classList.add('hidden');
                 document.getElementById('ended-chat').classList.remove('hidden');
                 
                 updateChatStatus('Disconnected', 'bg-gray-100 text-gray-800');
+                
+                // Redirect to home page after a short delay
+                setTimeout(function() {
+                    console.log('Redirecting to home page');
+                    window.location.href = sessionInfo.redirectTo || '/';
+                }, 2000);
             }
         }
         

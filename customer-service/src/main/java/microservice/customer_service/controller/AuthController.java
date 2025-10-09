@@ -3,6 +3,7 @@ package microservice.customer_service.controller;
 import lombok.RequiredArgsConstructor;
 import microservice.customer_service.model.User;
 import microservice.customer_service.service.ChatService;
+import microservice.customer_service.service.EmailVerificationService;
 import microservice.customer_service.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -20,6 +21,7 @@ public class AuthController {
     
     private final UserService userService;
     private final ChatService chatService;
+    private final EmailVerificationService emailVerificationService;
     private static final String AGENT_REGISTRATION_CODE = "AGENT123"; // This would be stored securely in a real app
     
     @GetMapping("/login")
@@ -40,10 +42,21 @@ public class AuthController {
     }
     
     @PostMapping("/register")
-    public String registerCustomer(User user) {
-        user.setRole(User.Role.CUSTOMER);
-        userService.registerUser(user);
-        return "redirect:/login?registered";
+    public String registerCustomer(User user, RedirectAttributes redirectAttributes) {
+        try {
+            user.setRole(User.Role.CUSTOMER);
+            User savedUser = userService.registerUser(user);
+            
+            // Send verification email
+            emailVerificationService.sendVerificationEmail(savedUser);
+            
+            redirectAttributes.addFlashAttribute("message", 
+                "Registration successful! Please check your email to verify your account before logging in.");
+            return "redirect:/login?verification-sent";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Registration failed: " + e.getMessage());
+            return "redirect:/register";
+        }
     }
     
     @PostMapping("/register-agent")
@@ -57,8 +70,13 @@ public class AuthController {
         
         try {
             user.setRole(User.Role.AGENT);
-            userService.registerUser(user);
-            redirectAttributes.addFlashAttribute("success", "Agent registration successful! You can now login.");
+            User savedUser = userService.registerUser(user);
+            
+            // Send verification email
+            emailVerificationService.sendVerificationEmail(savedUser);
+            
+            redirectAttributes.addFlashAttribute("success", 
+                "Agent registration successful! Please check your email to verify your account before logging in.");
             return "redirect:/register-agent";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Registration failed: " + e.getMessage());
@@ -68,18 +86,19 @@ public class AuthController {
     
     @GetMapping("/dashboard")
     public String dashboard(Model model, Authentication authentication) {
-        // Get user role and redirect to appropriate dashboard
+        // Get user role and redirect to appropriate page
         String role = authentication.getAuthorities().iterator().next().getAuthority();
         
         if (role.equals("ROLE_AGENT")) {
             return "redirect:/agent/dashboard";
         } else if (role.equals("ROLE_CUSTOMER")) {
-            return "redirect:/customer/dashboard";
+            // Redirect customers to landing page (they'll see logged-in state)
+            return "redirect:/";
         } else if (role.equals("ROLE_ADMIN")) {
             return "redirect:/admin/dashboard";
         }
         
-        return "dashboard"; // fallback
+        return "redirect:/"; // fallback to landing page
     }
     
     @GetMapping("/agent/dashboard")
@@ -131,5 +150,46 @@ public class AuthController {
         }
         
         return "agent-chat";
+    }
+    
+    @GetMapping("/verify-email")
+    public String verifyEmail(@RequestParam("token") String token, Model model) {
+        try {
+            boolean verified = emailVerificationService.verifyEmail(token);
+            
+            if (verified) {
+                model.addAttribute("message", "Email verified successfully! You can now login to your account.");
+                model.addAttribute("messageType", "success");
+            } else {
+                model.addAttribute("message", "Invalid or expired verification link. Please register again or request a new verification email.");
+                model.addAttribute("messageType", "error");
+            }
+        } catch (Exception e) {
+            model.addAttribute("message", "An error occurred during email verification. Please try again.");
+            model.addAttribute("messageType", "error");
+        }
+        
+        return "email-verification-result";
+    }
+    
+    @GetMapping("/resend-verification")
+    public String resendVerificationPage() {
+        return "resend-verification";
+    }
+    
+    @PostMapping("/resend-verification")
+    public String resendVerification(@RequestParam("email") String email, 
+                                   RedirectAttributes redirectAttributes) {
+        try {
+            emailVerificationService.resendVerificationEmail(email);
+            redirectAttributes.addFlashAttribute("message", 
+                "Verification email sent! Please check your inbox.");
+            redirectAttributes.addFlashAttribute("messageType", "success");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("message", e.getMessage());
+            redirectAttributes.addFlashAttribute("messageType", "error");
+        }
+        
+        return "redirect:/resend-verification";
     }
 }

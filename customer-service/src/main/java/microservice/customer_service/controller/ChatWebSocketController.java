@@ -165,39 +165,74 @@ public class ChatWebSocketController {
     public void leaveChat(@Payload Map<String, String> payload, Principal principal) {
         Long sessionId = Long.parseLong(payload.get("sessionId"));
         
-        userService.findByUsername(principal.getName()).ifPresent(user -> {
-            ChatSession endedSession = chatService.endChatSession(sessionId);
-            
-            // Notify both parties that the chat has ended
-            Map<String, Object> endInfo = new HashMap<>();
-            endInfo.put("sessionId", endedSession.getId());
-            endInfo.put("status", "CLOSED");
-            
-            String customerDestination = endedSession.getCustomer().getUsername();
-            if (endedSession.getCustomer().isGuest()) {
-                customerDestination = "guest-" + endedSession.getCustomer().getUsername().replaceAll("\\s", "_");
-            }
-            
+        System.out.println("Chat leave request for session: " + sessionId);
+        System.out.println("Principal: " + (principal != null ? principal.getName() : "null (guest user)"));
+        
+        // Handle both registered users and guest users
+        if (principal != null) {
+            // Registered user (agent)
+            userService.findByUsername(principal.getName()).ifPresent(user -> {
+                endChatSessionAndNotify(sessionId, user.getUsername() + " left the chat");
+            });
+        } else {
+            // Guest user - find by session
+            chatService.getSessionById(sessionId).ifPresent(session -> {
+                if (session.getCustomer() != null && session.getCustomer().isGuest()) {
+                    endChatSessionAndNotify(sessionId, session.getCustomer().getUsername() + " left the chat");
+                }
+            });
+        }
+    }
+    
+    private void endChatSessionAndNotify(Long sessionId, String leaveMessage) {
+        ChatSession endedSession = chatService.endChatSession(sessionId);
+        
+        System.out.println("Chat session " + sessionId + " ended. " + leaveMessage);
+        
+        // Create end notification with thank you message
+        Map<String, Object> endInfo = new HashMap<>();
+        endInfo.put("sessionId", endedSession.getId());
+        endInfo.put("status", "CLOSED");
+        endInfo.put("message", "Thank you for using our chat service!");
+        endInfo.put("redirectTo", "/");
+        
+        // Notify customer
+        if (endedSession.getCustomer().isGuest()) {
+            // Guest customer - send to guest topic
+            String guestTopic = "/topic/guest/guest-" + endedSession.getCustomer().getUsername().replaceAll("\\s", "_");
+            System.out.println("Sending chat end notification to guest: " + guestTopic);
+            messagingTemplate.convertAndSend(guestTopic, endInfo);
+        } else {
+            // Registered customer
+            System.out.println("Sending chat end notification to registered customer: " + endedSession.getCustomer().getUsername());
             messagingTemplate.convertAndSendToUser(
-                customerDestination,
+                endedSession.getCustomer().getUsername(),
                 "/queue/session",
                 endInfo
             );
+        }
+        
+        // Notify agent
+        if (endedSession.getAgent() != null) {
+            Map<String, Object> agentEndInfo = new HashMap<>();
+            agentEndInfo.put("sessionId", endedSession.getId());
+            agentEndInfo.put("status", "CLOSED");
+            agentEndInfo.put("message", "Chat session ended");
+            agentEndInfo.put("action", "REMOVE_FROM_ACTIVE");
             
-            if (endedSession.getAgent() != null) {
-                messagingTemplate.convertAndSendToUser(
-                    endedSession.getAgent().getUsername(),
-                    "/queue/session",
-                    endInfo
-                );
-                
-                // Notify agents of queue updates
-                messagingTemplate.convertAndSend(
-                    "/topic/queue-updates",
-                    Map.of("action", "QUEUE_UPDATE", "queueSize", chatService.getWaitingCustomers().size())
-                );
-            }
-        });
+            System.out.println("Sending chat end notification to agent: " + endedSession.getAgent().getUsername());
+            messagingTemplate.convertAndSendToUser(
+                endedSession.getAgent().getUsername(),
+                "/queue/session",
+                agentEndInfo
+            );
+            
+            // Notify all agents of queue updates (agent is now available)
+            messagingTemplate.convertAndSend(
+                "/topic/queue-updates",
+                Map.of("action", "AGENT_AVAILABLE", "queueSize", chatService.getWaitingCustomers().size())
+            );
+        }
     }
     
     @MessageMapping("/agent.available")

@@ -269,15 +269,26 @@
                 addActiveChat(sessionInfo);
             }
             else if (sessionInfo.status === 'CLOSED') {
+                console.log('Chat session ended:', sessionInfo.sessionId);
+                
                 // Chat ended
                 if (sessionInfo.sessionId === currentChatId) {
                     currentChatId = null;
                     document.getElementById('no-chat-selected').classList.remove('hidden');
                     document.getElementById('chat-interface').classList.add('hidden');
+                    
+                    // Show notification message if provided
+                    if (sessionInfo.message && sessionInfo.action === 'REMOVE_FROM_ACTIVE') {
+                        // Could show a toast notification here if desired
+                        console.log('Chat ended:', sessionInfo.message);
+                    }
                 }
                 
                 // Remove from active chats
                 removeActiveChat(sessionInfo.sessionId);
+                
+                // Refresh queue to show any new customers waiting
+                refreshQueueList();
             }
         }
         
